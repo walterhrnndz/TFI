@@ -1,0 +1,7 @@
+.vscode
+.ca
+build
+debug
+dist
+nbproject
+node_modules
