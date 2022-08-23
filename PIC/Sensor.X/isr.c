@@ -8,11 +8,7 @@ void __interrupt() ISR_HANDLER(void) {
             CREN = 0;
             CREN = 1;
         }
-        if(RCREG == 'A') {
-            enviar = 0;
-        }
-        if(RCREG == 'E') {
-            enviar = 1;
-        }
+        dato = RCREG;
+        nuevoDato = 1;
     }
 }

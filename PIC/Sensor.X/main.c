@@ -10,35 +10,71 @@
 #include "uart.h"
 #include "isr.h"
 
-#define MIN_DISTANCIA   10
-#define SLAVE_ADDRESS   10
+/*
+ * Agregar variables de control para identificar si se recibio el mensaje completo
+ * Manejar las diferentes acciones segun corresponda:
+ * - Encender apagar leds
+ * - Enviar informacion de estado (ocupado/desocupado)
+ * - Enviar informacion de distancia medida
+ * - Cambiar distancia minima de deteccion
+ * - Ignorar mensaje si es para otro esclavo
+ * - Aceptar mensaje si es para SLAVE_ADDRESS de este dispositivo o 0x00
+ * - Manejar SLAVE_ADDRESS segun lectura de los pines
+ * - Configurar pines para asignar direccion al dispositivo
+ */
 
-#define CAMBIO_PIN      TRISBbits.TRISB3 // Cambio recepcion/transmision.
-#define CAMBIO          PORTBbits.RB3 // Estando en 0, configura como receptor.
+__bit datoCompleto = 0;
+__bit addressPropio = 0;
+
+void blink(int num) {
+    for (int i = 0; i < num; i++) {
+        ONOFF = 1;
+        __delay_ms(250);
+        ONOFF = 0;
+    }
+}
 
 void main(void) {
-    uint16_t dist;
-    config();
-    iniciarUART();
+    uint16_t dist;      // Variable de distancia del objeto
+    config();           // Configuracion del PIC
+    iniciarUART();      // Inicia los registros para la comunicacion UART
     
-    CAMBIO = 0;
-    CAMBIO_PIN = 0;
+    RECIBIR = 0;         // Inicializa como receptor al transciver
+    RECIBIR_PIN = 0;     // Inicializa como salida el pin
     
-    char mensaje[80];
-    
+    // Loop infinito
     while(1) {
         dist = distancia();
-        (dist < MIN_DISTANCIA) ? (LED = 1) : (LED = 0);
+        (dist < MIN_DISTANCIA) ? (LED = 1) : (LED = 0); // Verificacion de la distancia para cambio de estado
         
-        if(enviar == 0) {
-            //sprintf(mensaje, "Distancia: %d \r\n", dist);
-            //enviarCadena(mensaje);
-            ONOFF = 0;
+        if(nuevoDato == 1) {
+            if(dato == 'I') {
+                cantDatos = 0;
+                datoCompleto = 0;
+                blink(3);
+            }
+
+            if(dato == 'F') {
+                datoCompleto = 1;
+            }
+
+            datos[cantDatos] = dato;
+            cantDatos++;
+            nuevoDato = 0;
         }
-        if(enviar == 1) {
-            ONOFF = 1;
+
+        if(datoCompleto == 1) {
+            if (datos[2] == SLAVE_ADDRESS) addressPropio = 1;
+            else addressPropio = 0;
+
+            if (addressPropio == 1 || datos[2] == 0) {
+                // ESTRUCTURA DEL STRING DATOS: INICIO_TRAMA, ADDRESS1, ADDRESS2, FUNCION, DATO1, DATO2, FIN_TRAMA
+                if(datos[5] == 'E') ONOFF = 1;
+                else ONOFF = 0;
+            }
+            datoCompleto = 0;
         }
-        //enviar = 0;
-        __delay_ms(250);
+        
+        __delay_ms(50);
     }
 }
